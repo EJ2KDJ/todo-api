@@ -13,13 +13,19 @@ module.exports = {
         type: Sequelize.STRING
       },
       status: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM('pending', 'in-progress', 'completed'),
+        allowNull: false,
+        defaultValue: 'pending'
       },
       details: {
         type: Sequelize.TEXT
       },
       userId: {
-        type: Sequelize.INTEGER
+        type: Sequelize.INTEGER,
+        references: {
+          model: 'Users',
+          key: 'id'
+        },
       },
       createdAt: {
         allowNull: false,
