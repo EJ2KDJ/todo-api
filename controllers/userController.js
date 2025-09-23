@@ -31,9 +31,15 @@ const getUserById = async (req, res) => {
 const signup = async (req, res) => {
     try {
         const {name, email, password} = req.body; //Get user details from request body
+
+        if (!password || typeof password !== "string") {
+            return res.status(400).json({ error: "Password is required and must be a string" });
+        }
+
+        console.log("Signup body: ", req.body);
         const hashedPassword = await bcrypt.hash(password, 10); //Hash the password before storing
-        const newUser = await User.createUser({ name, email, password: hashedPassword }); //Create new user in the database
-        res.status(201).json(newUser); 
+        const newUser = await User.create({ name, email, password: hashedPassword }); //Create new user in the database
+
         return res.status(201).json({ message: 'User created successfully' });
     } catch (err) {
         console.log(err);
@@ -58,7 +64,6 @@ const updateUser = async (req, res) => {
         }
 
         await user.save();
-        res.json(user);
         return res.status(200).json({ message: 'User updated successfully' });
     } catch (err) {
         console.log(err);
