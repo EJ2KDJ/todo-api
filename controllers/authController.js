@@ -1,4 +1,4 @@
-const {User} = require("../models");
+const {User} = require("../sequelize/models");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
@@ -11,13 +11,13 @@ const login = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        if (username) {
+        if (name) {
             if (
-                username === process.env.ADMIN_USERNAME &&
+                name === process.env.ADMIN_USERNAME &&
                 password === process.env.ADMIN_PASSWORD
             ) {
                 const token = jwt.sign(
-                    { username, role: "admin" },
+                    { name, role: "admin" },
                     process.env.JWT_SECRET,
                     { expiresIn: process.env.JWT_EXPIRES_IN }
                 );
