@@ -7,36 +7,21 @@ const taskRoutes = require('./routes/taskRoutes');
 
 const app = express();
 
-console.log("ENV CHECK →");
-console.log("DB_USER:", process.env.DB_USER, "| type:", typeof process.env.DB_USER);
-console.log("DB_PASS:", process.env.DB_PASS, "| type:", typeof process.env.DB_PASS);
-console.log("ADMIN_USER:", process.env.ADMIN_USER, "| type:", typeof process.env.ADMIN_USER);
-console.log("ADMIN_PASS:", process.env.ADMIN_PASS, "| type:", typeof process.env.ADMIN_PASS);
-console.log("JWT_SECRET:", process.env.JWT_SECRET, "| type:", typeof process.env.JWT_SECRET);
-console.log("JWT_EXPIRES_IN:", process.env.JWT_EXPIRES_IN, "| type:", typeof process.env.JWT_EXPIRES_IN);
-console.log("PORT:", process.env.PORT, "| type:", typeof process.env.PORT);
-
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
-//Error handling middleware
+// Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
 
+// Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tasks', taskRoutes);
 
 app.get('/', (req, res) => {
-    res.send('Welcome to the Todo API');
+  res.send('Welcome to the Todo API');
 });
 
-
-app.listen(PORT, () => {
-    console.log(`Server is running on port http://localhost:${PORT}`);
-});
-
-module.exports = app; // Export the app for testing purposes
+module.exports = app;

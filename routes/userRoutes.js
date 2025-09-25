@@ -3,15 +3,18 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const {authMiddleware, requireAdmin} = require('../middleware');
 
+// Public route - no authentication required
+router.post('/signup', userController.signup);
 
-// Define routes for user operations
-router.post('/signup', userController.signup); //User signup
-// User routes
-router.put("/:id", authMiddleware, userController.updateUser);
+// Protected routes - require authentication
+router.use(authMiddleware);
+
+// User can only update their own profile
+router.put("/profile", userController.updateUser); // Remove :id, use authenticated user
 
 // Admin-only routes
-router.delete("/:id", authMiddleware, requireAdmin, userController.deleteUser);
-router.get("/", authMiddleware, requireAdmin, userController.getAllUsers);
-router.get("/:id", authMiddleware, requireAdmin, userController.getUserById);
+router.get("/", requireAdmin, userController.getAllUsers);        // Get all users
+router.get("/:id", requireAdmin, userController.getUserById);     // Get user by ID
+router.delete("/:id", requireAdmin, userController.deleteUser);   // Delete any user
 
 module.exports = router;

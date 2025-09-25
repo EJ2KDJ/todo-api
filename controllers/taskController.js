@@ -1,22 +1,25 @@
 const {User, Task} = require('../sequelize/models');
 
-//Get all tasks for a specific user
+// Get all tasks for the authenticated user
 const getUserTasks = async (req, res) => {
     try {
-        const userId = req.params.userId; //Check userId from request parameters
-        const user = await User.findByPk(userId, {  //find user by primary key
+        const userId = req.user && req.user.id;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const user = await User.findByPk(userId, {
             include: [{ model: Task }]
         });
 
-        if (!user) { // error handling if user not found
+        if (!user) {
            return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json(user.Tasks); // return user's tasks
-        return res.status(200).json({ message: 'Tasks retrieved successfully' });
+        return res.status(200).json(user.Tasks || []);
     } catch (err) {
-        res.status(500).json({ error: 'Failed to retrieve tasks' });
         console.log(err);
+        return res.status(500).json({ error: 'Failed to retrieve tasks' });
     }
 }
 
@@ -24,7 +27,7 @@ const getUserTasks = async (req, res) => {
 //Create a new task for a specific user
 const createTask  = async (req, res) => {
     try {
-        const userId = req.params.userId; //Check userId from request parameters
+        const userId = req.user.id; //Check userId from request parameters
         const { name, status, details } = req.body; //Get task details from request body
         const user = await User.findByPk(userId); //find user by primary key
 
@@ -44,7 +47,10 @@ const createTask  = async (req, res) => {
 const updateTask = async (req, res) => {
     try {
         const {name, status, details} = req.body; //Get updated task details from request body
-        const task = await Task.findByPk(req.params.id); //find task by primary key
+        const taskId = req.params.id; //Get taskId from request parameters
+        const userId = req.user.id; //Get userId from authenticated user
+
+        const task = await Task.findOne({ where: { id: taskId, userId } }); //Find task by primary key and userId
 
         if (!task) { // error handling if task not found
             return res.status(404).json({ error: 'Task not found' });
@@ -53,6 +59,7 @@ const updateTask = async (req, res) => {
         task.name = name || task.name; //Update task name if provided
         task.status = status || task.status; //Update task status if provided
         task.details = details || task.details; //Update task details if provided
+
         await task.save(); //Save the updated task
         res.json(task); //Return the updated task
         return res.status(200).json({ message: 'Task updated successfully' });
@@ -64,14 +71,16 @@ const updateTask = async (req, res) => {
 
 const deleteTask = async (req, res) => {
     try {
-        const task = await Task.findByPk(req.params.id); //find task by primary key
+        const taskId = req.params.id; //find task by primary key
+        const userId = req.user.id; //Get userId from authenticated user
+
+        const task = await Task.findOne({ where: { id: taskId, userId } }); //Find task by primary key and userId
 
         if (!task) { // error handling if task not found
             return res.status(404).json({ error: 'Task not found' });
         }
 
         await task.destroy(); //Delete the task
-        res.json({ message: 'Task deleted successfully' });
         return res.status(200).json({ message: 'Task deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to delete task' });

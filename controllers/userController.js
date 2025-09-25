@@ -4,8 +4,8 @@ const bcrypt = require('bcrypt');
 //Get all users
 const getAllUsers = async (req, res) => {
     try {
-        const users  = await User.findAll(); //Fetch all users from the database
-        return res.status(200).json({ users, message: 'Users retrieved successfully' });
+        const users = await User.findAll(); //Fetch all users from the database
+        res.status(200).json(users);
     } catch (err) {
         console.log(err);
         res.status(500).json({ error: 'Failed to retrieve users' });
@@ -29,17 +29,36 @@ const getUserById = async (req, res) => {
 
 const signup = async (req, res) => {
     try {
-        const {name, email, password} = req.body; //Get user details from request body
+        const { name, email, password } = req.body; //Get user details from request body
 
-        if (!password || typeof password !== "string") {
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ 
+                error: "Name, email, and password are required" 
+            });
+        }
+
+        if (typeof password !== "string") {
             return res.status(400).json({ error: "Password is required and must be a string" });
+        }
+
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(409).json({ error: 'User with this email already exists' });
         }
 
         console.log("Signup body: ", req.body);
         const hashedPassword = await bcrypt.hash(password, 10); //Hash the password before storing
         const newUser = await User.create({ name, email, password: hashedPassword }); //Create new user in the database
 
-        return res.status(201).json({ message: 'User created successfully' });
+        return res.status(201).json({
+            message: 'User created successfully',
+            user: {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email
+            }
+        });
     } catch (err) {
         console.log(err);
         res.status(500).json({ error: 'Failed to create user' });
@@ -48,11 +67,18 @@ const signup = async (req, res) => {
 
 const updateUser = async (req, res) => {
     try {
-        const userId = req.params.id; //Get userId from request parameters
+        const userId = req.user.id; //Get authenticated user
         const { name, email, password } = req.body; //Get updated user details from request body
         const user = await User.findByPk(userId); //Find user by primary key
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (email && email !== user.email) {
+            const existingUser = await User.findOne({ where: { email } });
+            if (existingUser) {
+                return res.status(400).json({ error: 'Email already in use' });
+            }
         }
 
         //Update user details
@@ -70,7 +96,7 @@ const updateUser = async (req, res) => {
     }
 }
 
-const deleteUser = async (req, res) => { 
+const deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
         await Task.destroy({ where: { userId } }); //Delete all tasks associated with the user

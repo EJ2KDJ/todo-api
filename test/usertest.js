@@ -1,58 +1,84 @@
-const request = require('./setup');
-const { expect } = require('chai');
+const { app } = require("./setup");
+const chai = require("chai");
+const { expect } = chai;
 
-describe('Users', () => {
-    it('retrieves all users (admin only)', async () => {
-        const adminLogin = await request.post('/users/signup').send({
-            name: 'admin',
-            passwordL: 'admin'
-        });
+const request = () => chai.request(app);
 
-        const token = adminLogin.body.token;
+describe("Users", () => {
+    // Helper function to get admin token
+    const getAdminToken = async () => {
+        const adminLogin = await request()
+            .post("/auth/login")
+            .send({
+                name: process.env.ADMIN_USER || "admin",
+                password: process.env.ADMIN_PASS || "admin"
+            });
+        expect(adminLogin).to.have.status(200);
+        return adminLogin.body.token;
+    };
 
-        const res = await request
-            .get('/users')
-            .set('Authorization', `Bearer ${token}`);
-        expect(res).to.have.status(200);
-        expect(res.body).to.have.property('users')
-    });
-
-    it('updates a user', async () => {
-        const signupRes = await request.post('/users/signup').send({
-            name: 'EJ',
-            email: 'test@email.com',
-            password: 'testpass'
-        });
+    // Helper function to create user and get token
+    const createUserAndLogin = async () => {
+        const email = "test@emai.com";
+        const signupRes = await request()
+            .post("/users/signup")
+            .send({
+                name: "EJ",
+                email,
+                password: "testpass"
+            });
         expect(signupRes).to.have.status(201);
-        const userId = signupRes.body.id;
-        const res = await request.put(`/users/${userId}`).send({
-            name: 'EJ Updated'
-        });
+        const userId = signupRes.body.user.id;
+
+        const loginRes = await request()
+            .post("/auth/login")
+            .send({
+                email: email,
+                password: "testpass"
+            });
+        expect(loginRes).to.have.status(200);
+        
+        return {
+            token: loginRes.body.token,
+            userId
+        };
+    };
+
+    //4
+    it("retrieves all users (admin only)", async () => {
+        const token = await getAdminToken();
+
+        const res = await request()
+            .get("/users")
+            .set("Authorization", `Bearer ${token}`);
+            
         expect(res).to.have.status(200);
-        expect(res.body).to.have.property('message');
-        expect(res.body.message).to.equal('User updated successfully');
+        expect(res.body).to.be.an("array");
     });
 
-    it('deletes a user (admin only)', async () => {
-        const adminLogin = await request.post("/auth/login").send({
-            name: "admin",
-            password: "admin"
-        });
-        const token = adminLogin.body.token;
+    //5
+    it("updates a user", async () => {
+        const { token } = await createUserAndLogin();
 
-        const signupRes = await request.post('/users/signup').send({
-            name: 'EJ',
-            email: 'test@email',
-            password: 'testpass'
-        });
+        const res = await request()
+            .put("/users/profile")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "EJ Updated" });
 
-        const deleteUserId = signupRes.body.id;
-
-        const res = await request
-            .delete(`/users/${deleteUserId}`)
-            .set('Authorization', `Bearer ${token}`);
         expect(res).to.have.status(200);
-        expect(res.body).to.have.property('message');
-        expect(res.body.message).to.equal('User and associated tasks deleted successfully');
+        expect(res.body).to.have.property("message","User updated successfully");
+    });
+
+    //7
+    it("deletes a user (admin only)", async () => {
+        const { userId } = await createUserAndLogin();
+        const adminToken = await getAdminToken();
+
+        const res = await request()
+            .delete(`/users/${userId}`)
+            .set("Authorization", `Bearer ${adminToken}`)
+
+        expect(res).to.have.status(200);
+        expect(res.body).to.have.property("message","User deleted successfully");
     });
 });
