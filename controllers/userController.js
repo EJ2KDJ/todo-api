@@ -4,9 +4,8 @@ const bcrypt = require('bcrypt');
 //Get all users
 const getAllUsers = async (req, res) => {
     try {
-        const { users } = await User.findAndCountAll(); //Fetch all users from the database
-        res.json(users);
-        return res.status(200).json({ message: 'Users retrieved successfully' });
+        const users  = await User.findAll(); //Fetch all users from the database
+        return res.status(200).json({ users, message: 'Users retrieved successfully' });
     } catch (err) {
         console.log(err);
         res.status(500).json({ error: 'Failed to retrieve users' });
@@ -74,6 +73,7 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => { 
     try {
         const userId = req.params.id;
+        await Task.destroy({ where: { userId } }); //Delete all tasks associated with the user
         const user = await User.findByPk(userId);
 
         if (!user) {

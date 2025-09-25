@@ -12,5 +12,6 @@ router.put("/:id", authMiddleware, userController.updateUser);
 // Admin-only routes
 router.delete("/:id", authMiddleware, requireAdmin, userController.deleteUser);
 router.get("/", authMiddleware, requireAdmin, userController.getAllUsers);
+router.get("/:id", authMiddleware, requireAdmin, userController.getUserById);
 
 module.exports = router;
