@@ -1,37 +1,134 @@
 openapi: 3.0.0
 info:
-  title: To-do list API
+  title: To-do List API
   version: 1.0.0
   description: |
-    API for managing a to-do list
-    This API allows users to create, read, update, and delete to-do items.
-    Each to-do item has an ID, title, description, and status (completed or not).
-    Users can sign up and log in auhthenticated access to their to-do items.
+    API for managing a to-do list with user authentication.
+    This API allows users to create, read, update, and delete tasks.
+    Users can sign up and log in for authenticated access to their tasks.
+    Admin users have additional privileges for user management.
+
 servers:
-  - url: http://localhost:3000/api
-    description: Local server
+  - url: http://localhost:3000
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - name
+        - email
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+        details:
+          type: string
+        userId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - name
+
+    LoginRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Required for admin login
+        email:
+          type: string
+          description: Required for user login
+        password:
+          type: string
+      required:
+        - password
+
+    SignupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - name
+        - email
+        - password
+
+    TaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+        details:
+          type: string
+      required:
+        - name
 
 paths:
   /auth/login:
     post:
-      summary: User login
+      tags:
+        - Authentication
+      summary: User or Admin login
+      description: |
+        Login as either a regular user (with email/password) or admin (with name/password).
+        Admin credentials are configured via environment variables.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                password:
-                  type: string
-              required:
-                - username
-                - email
-                - password
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              userLogin:
+                summary: User login
+                value:
+                  email: "user@example.com"
+                  password: "userpassword"
+              adminLogin:
+                summary: Admin login
+                value:
+                  name: "admin"
+                  password: "adminpassword"
       responses:
         '200':
           description: Successful login
@@ -40,14 +137,63 @@ paths:
               schema:
                 type: object
                 properties:
+                  message:
+                    type: string
                   token:
                     type: string
+        '400':
+          description: Email and password are required
         '401':
-          description: Unauthorized
+          description: Invalid password
+        '404':
+          description: User not found
+        '500':
+          description: Failed to login
 
   /users/signup:
     post:
-      summary: User signup
+      tags:
+        - Users
+      summary: User registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      email:
+                        type: string
+        '400':
+          description: Bad request - missing required fields
+        '409':
+          description: User with this email already exists
+        '500':
+          description: Failed to create user
+
+  /users/profile:
+    put:
+      tags:
+        - Users
+      summary: Update authenticated user's profile
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -61,21 +207,173 @@ paths:
                   type: string
                 password:
                   type: string
-              required:
-                - username
-                - email
-                - password
       responses:
-        '201':
-          description: User created successfully
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '400':
-          description: Bad request
+          description: Email already in use
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to update user
 
-  /users/profile:
-    put:
-      summary: Update user profile
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get all users (Admin only)
       security:
         - bearerAuth: []
+      responses:
+        '200':
+          description: List of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Admin access required
+        '500':
+          description: Failed to retrieve users
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Admin access required
+        '404':
+          description: User not found
+        '500':
+          description: Failed to retrieve user
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user by ID (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Admin access required
+        '404':
+          description: User not found
+        '500':
+          description: Failed to delete user
+
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Get all tasks for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of user's tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to retrieve tasks
+
+    post:
+      tags:
+        - Tasks
+      summary: Create task for authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to create task
+
+  /tasks/{id}:
+    put:
+      tags:
+        - Tasks
+      summary: Update task by ID (ownership verified)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Task ID
       requestBody:
         required: true
         content:
@@ -85,52 +383,29 @@ paths:
               properties:
                 name:
                   type: string
-                email:
+                status:
                   type: string
-              required:
-                - username
-                - email
-      responses:
-        if email already exists:
-          description: Email already in use
-        '200':
-          description: Profile updated successfully
-        '400':
-          description: Bad request
-        '401':
-          description: Unauthorized
-
-  /users:
-    get:
-      summary: Get all users (admin only)
-      security:
-        - bearerAuth: []
+                  enum: [pending, in-progress, completed]
+                details:
+                  type: string
       responses:
         '200':
-          description: List of users
+          description: Task updated successfully
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-                    email:
-                      type: string
-                    password:
-                      type: string
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Task not found or access denied
         '500':
-          description: 'Failed to retrieve users'
-        '403':
-          description: 'Admin access required'
+          description: Failed to update task
 
-  /users/{id}:
-    get:
-      summary: Get user by ID (admin only)
+    delete:
+      tags:
+        - Tasks
+      summary: Delete task by ID (ownership verified)
       security:
         - bearerAuth: []
       parameters:
@@ -138,145 +413,21 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            type: integer
+          description: Task ID
       responses:
         '200':
-          description: User details
+          description: Task deleted successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  id:
+                  message:
                     type: string
-                  name:
-                    type: string
-                  email:
-                    type: string
-                  password:
-                    type: string
+        '401':
+          description: Unauthorized
         '404':
-          description: 'Failed to retrieve user'
-        '403':
-          description: 'Admin access required'
-
-  /users/{id}:
-    delete:
-      summary: Delete user by ID (admin only)
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: User deleted successfully
+          description: Task not found or access denied
         '500':
-          description: 'Failed to delete user'
-        '403':
-          description: 'Admin access required'
-
-  /tasks:
-    post:
-      summary: Create task for auhthenticated user
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                status:
-                  type: string
-                  enum: [pending, in-progress,completed]
-                details:
-                  type: string
-              required:
-                - title
-                - description
-
-  /tasks:
-    get:
-      summary: Get all tasks for auhthenticated user
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: List of tasks
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    title:
-                      type: string
-                    description:
-                      type: string
-                    status:
-                      type: string
-        '500':
-          description: 'Failed to retrieve tasks'
-
-  /tasks/{id}:
-    put:
-      summary: Update task by ID for auhthenticated user
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                description:
-                  type: string
-                status:
-                  type: string
-                  enum: [pending, in-progress, completed]
-              required:
-                - title
-                - description
-                - status
-      responses:
-        '200':
-          description: Task updated successfully
-        '500':
-          description: 'Failed to update task'
-  
-  /tasks/{id}:
-    delete:
-      summary: Delete task by ID for auhthenticated user
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Task deleted successfully
-        '500':
-          description: 'Failed to delete task'
-    
+          description: Failed to delete task

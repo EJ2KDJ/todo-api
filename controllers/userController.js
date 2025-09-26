@@ -39,7 +39,7 @@ const signup = async (req, res) => {
         }
 
         if (typeof password !== "string") {
-            return res.status(400).json({ error: "Password is required and must be a string" });
+            return res.status(400).json({ error: "Password must be a string" });
         }
 
         const existingUser = await User.findOne({ where: { email } });
