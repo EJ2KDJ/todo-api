@@ -78,7 +78,7 @@ describe("Users", () => {
             .delete(`/users/${userId}`)
             .set("Authorization", `Bearer ${adminToken}`)
 
-        expect(res).to.have.status(200);
+        expect(res).to.have.status(201);
         expect(res.body).to.have.property("message","User deleted successfully");
     });
 });
